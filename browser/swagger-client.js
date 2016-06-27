@@ -467,6 +467,12 @@ SwaggerClient.prototype.buildFromSpec = function (response) {
   this.basePath = response.basePath || '';
   this.consumes = response.consumes;
   this.host = response.host || '';
+  if (response["x-port"]){
+    this.port = response["x-port"];
+  }else{
+    alert("Port Undefined. Defaulting to 8090.")
+    this.port = "8090";
+  }
   this.info = response.info || {};
   this.produces = response.produces;
   this.schemes = response.schemes || [];
@@ -507,7 +513,12 @@ SwaggerClient.prototype.buildFromSpec = function (response) {
       this.host = location.host;
 
       if (location.port) {
-        this.host = this.host + ':' + location.port;
+        if (this.port){
+          this.host = this.host + ":" + this.port;
+        }else{
+          this.host = this.host + ":" + location.port;
+        }
+        
       }
     }
   }
