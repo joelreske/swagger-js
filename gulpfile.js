@@ -143,4 +143,4 @@ gulp.task('watch-browsertest', function(done){
 });
 
 
-gulp.task('default', ['clean', 'lint', 'test', 'build']);
+gulp.task('default', ['clean', 'lint', 'build']);

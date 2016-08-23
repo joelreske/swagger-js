@@ -938,6 +938,35 @@ describe('swagger resolver', function () {
     sample = new SwaggerClient(opts);
   });
 
+  it('should resolve external references within allOf', function (done) {
+    var sample;
+    var opts = opts || {};
+    opts.url = opts.url || 'http://localhost:8000/v2/externalRefInAllOf.json';
+        
+    opts.success = function () {
+        var response = sample.apis.Queries.operations.getAsync.successResponse;
+
+        expect(response).toExist();
+        expect(response['200']).toExist();
+           
+        //JSON sample is not resolved is $ref used within allOf
+        var jsonSample = response['200'].createJSONSample();
+            
+        expect(jsonSample).toExist();
+        expect(jsonSample.response).toExist();
+        expect(jsonSample.value).toExist();
+
+        var mockSignature = response['200'].getMockSignature();
+        expect(mockSignature).toExist();
+        expect(mockSignature.indexOf('http://localhost:8000/v2/externalRef.json#/definitions/ErrorResponse')).toBe(-1);
+        expect(mockSignature.indexOf('http://localhost:8000/v2/externalRef.json#/definitions/Order')).toBe(-1);
+
+        done();
+    };
+
+    sample = new SwaggerClient(opts);
+  });
+
   it('resolves absolute references per #587', function(done) {
     var sample;
     var opts = opts || {};
@@ -1242,7 +1271,7 @@ describe('swagger resolver', function () {
         }
       }
     };
-    api.resolve(spec, 'http://localhost:8000/v2/swagger.json', function (spec, unresolved) {
+    api.resolve(spec, 'http://localhost:8000/v2/swagger.json', function (spec) {
         
       expect(spec.definitions.Pet.properties.color['$ref']).toBe('#/definitions/Color');
       expect(spec.definitions.Cat.properties.color['$ref']).toBe('#/definitions/Color');
@@ -1298,7 +1327,7 @@ describe('swagger resolver', function () {
         }
       }
     };
-    api.resolve(spec, 'http://localhost:8000/v2/swagger.json', function (spec, unresolved) {
+    api.resolve(spec, 'http://localhost:8000/v2/swagger.json', function (spec) {
       expect(spec.paths['/'].get.responses['200'].schema['$ref']).toBeA('string');
       var model = spec.paths['/'].get.responses['200'].schema['$ref'];
 
@@ -1334,7 +1363,7 @@ describe('swagger resolver', function () {
         }
       }
     };
-    api.resolve(spec, 'http://localhost:9000/v2/swagger.json', function (spec, unresolved) {
+    api.resolve(spec, 'http://localhost:9000/v2/swagger.json', function (spec) {
       expect(spec.paths['/'].get.parameters[0].name).toBe('skip');
       done();
     });
@@ -1353,7 +1382,7 @@ describe('swagger resolver', function () {
         }
       }
     };
-    api.resolve(spec, 'http://localhost:9000/v2/swagger.json', function (spec, unresolved) {
+    api.resolve(spec, 'http://localhost:9000/v2/swagger.json', function (spec) {
       expect(spec.paths['/'].get).toBeAn('object');
       done();
     });
@@ -1379,7 +1408,7 @@ describe('swagger resolver', function () {
         }
       }
     };
-    api.resolve(spec, 'http://localhost:9000/v2/swagger.json', function (spec, unresolved) {
+    api.resolve(spec, 'http://localhost:9000/v2/swagger.json', function (spec) {
       expect(spec.paths['/'].get.responses['200'].description).toBe('Entity not found');
       done();
     });
@@ -1409,7 +1438,7 @@ describe('swagger resolver', function () {
         }
       }
     };
-    api.resolve(spec, function (spec, unresolved) {
+    api.resolve(spec, function (spec) {
       expect(spec.paths['/'].get.parameters[0].name).toBe('skip');
       done();
     });
@@ -1454,7 +1483,7 @@ describe('swagger resolver', function () {
         }
       }
     };
-    api.resolve(spec, function (spec, unresolved) {
+    api.resolve(spec, function (spec) {
       var param = spec.paths['/'].post.parameters[0];
       expect(param.name).toBe('theBody');
       expect(param.schema['$ref']).toBeA('string');
@@ -1480,10 +1509,50 @@ describe('swagger resolver', function () {
         }
       }
     };
-    api.resolve(spec, function (spec, unresolved) {
+    api.resolve(spec, function (spec) {
       expect(spec.definitions.Foo.properties).toBeAn('object');
       expect(spec.definitions.Foo.properties.name).toBeAn('object');
       expect(spec.definitions.Foo.properties.name.type).toBe('string');
+      done();
+    });
+  });
+
+  it('resolves parameter with inline schema with only additionalProperties', function(done) {
+    var api = new Resolver();
+    var spec = {
+      swagger:'2.0',
+      info:{},
+      host:'localhost:9000',
+      basePath:'/2.0',
+      paths:{
+        '/':{
+          post:{
+            responses:{
+              '200':{
+                description:'thanks'
+              }
+            },
+            parameters:[{
+              in: 'body',
+              name: 'myObj',
+              required: true,
+              schema: {
+                type: 'object',
+                additionalProperties: {
+                  type: "string"
+                }
+              }
+            }]
+          }
+        }
+      }
+    };
+    api.resolve(spec, function (spec) {
+      var param = spec.paths['/'].post.parameters[0];
+      expect(param.name).toBe('myObj');
+      expect(param.schema['$ref']).toBeA('string');
+      expect(param.schema['$ref']).toEqual('#/definitions/inline_model');
+      expect(spec.definitions['inline_model']).toBeAn('object');
       done();
     });
   });
